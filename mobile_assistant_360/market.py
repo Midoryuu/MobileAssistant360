@@ -11,6 +11,9 @@ from clint.textui import progress
 
 
 class MobileAssistant360(object):
+    """
+    The class used to download android application from 360 mobile assistant store
+    """
 
     _BASE = "http://zhushou.360.cn"
     _DETAIL = "/detail/index/soft_id/"
