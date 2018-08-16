@@ -100,13 +100,13 @@ class MobileAssistant360(object):
                 result.append(app)
         return result
 
-    def search(self, keyword, nb_result):
+    def search(self, keyword, nb_result=50):
         """
         Search applications according to a given keyword.
 
         :param keyword: A keyword used to search applications
         :type keyword: str
-        :param nb_result: An integer corresponding to the limit of application in the returned list
+        :param nb_result: An integer corresponding to the limit number of application in the returned list
         :type nb_result: int
         :return: A list of applications found
         :rtype: list
