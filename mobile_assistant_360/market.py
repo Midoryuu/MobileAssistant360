@@ -18,7 +18,8 @@ class MobileAssistant360(object):
     _BASE = "http://zhushou.360.cn"
     _DETAIL = "/detail/index/soft_id/"
     _SEARCH = "/search/index/?kw="
-    _CATEGORIES_URL = ["/list/index/cid/1", "/list/index/cid/2"]
+    _CATEGORY = "/list/index/cid/"
+    _CATEGORIES_ID = ["1", "2"]
 
     _APP_NAME = "Name"
     _APP_PACKAGE = "PackageName"
@@ -425,12 +426,121 @@ class MobileAssistant360(object):
     def list_categories(self):
         """
         List the existing categories.
+        :return: A list of category
         """
         result = []
-        for cat_url in self._CATEGORIES_URL:
-            url = self._BASE + cat_url
+        for cat_id in self._CATEGORIES_ID:
+            url = self._BASE + self._CATEGORY + cat_id
             ret = self._get_categories_from_url(url)
             if isinstance(ret, list) and len(ret) > 0:
                 result.extend(ret)
         return result
 
+    @staticmethod
+    def _get_app_link_from_html(html):
+        a_tags = html.findAll("a")
+        if a_tags is not None and len(a_tags) == 3 and a_tags[2].get('href') is not None:
+            href_split = a_tags[2]['href'].split("&")
+            for value in reversed(href_split):
+                if value[:4] == "url=" and value.rfind(".apk") != -1:
+                    return value[4:]
+        return None
+
+    def _get_category_page_apps(self, category, page):
+        print("a")
+        result = []
+        category_url = self._BASE + self._CATEGORY + category + "?page={}".format(page)
+        print("b")
+        try:
+            req = requests.get(category_url)
+            print("c")
+            if req.status_code != 200:
+                print("d")
+                self._display_error("An error occurred with the url \"{}\".\nStatus code: {}."
+                                    .format(category_url, req.status_code))
+                return None
+            print("e")
+        except requests.exceptions.RequestException:
+            print("f")
+            self._display_error("An error occurred with the url '{}'.".format(category_url))
+            return None
+        print("g")
+        try:
+            bsoup = BeautifulSoup(req.text, "html.parser")
+            print("h")
+            html_app_list = bsoup.find(attrs={'id': 'iconList'}).find_all("li")
+            print("i")
+            if html_app_list is None or len(html_app_list) <= 0:
+                print("j")
+                return result
+            for html_app in html_app_list:
+                print("k")
+                app = {}
+                title = html_app.h3.a.string
+                app_id = html_app.h3.a['sid']
+                nb_down = html_app.span.string
+                dl_link = self._get_app_link_from_html(html_app)
+                print("l")
+                if dl_link is not None:
+                    print("m")
+                    apk_name, package, version = self._get_apk_package_and_version_from_url(dl_link)
+                    if apk_name is not None:
+                        print("n")
+                        app[self._APP_APK_NAME] = apk_name
+                    if package is not None:
+                        print("o")
+                        app[self._APP_PACKAGE] = package
+                    if version is not None:
+                        print("p")
+                        app[self._APP_VERSION] = version
+                app[self._APP_NAME] = title
+                app[self._APP_ID] = app_id
+                app[self._APP_DOWNLOADS] = nb_down
+                print("q")
+                if type(title) is str and type(dl_link) is str:
+                    print("r")
+                    result.append(app)
+        except AttributeError:
+            print("s")
+            self._display_error("An error occurred with the category page number {}.".format(page))
+        print("t")
+        return result
+
+    def browse(self, category, nb_result=None):
+        """
+        Browse a category
+        :param category: The ID of the category
+        :param nb_result: The max number of result
+        :return: A list of application
+        """
+        print("1")
+        if type(category) is not str:
+            raise TypeError("Error: category must be a string corresponding to a catID.")
+        result = []
+        loop = True
+        page = 1
+        print("2")
+        while loop:
+            print("3")
+            apps = self._get_category_page_apps(category, page)
+            print("4")
+            page += 1
+            print("5")
+            print("apps={}".format(apps))
+            if apps is None or len(apps) <= 0:
+                print("6")
+                loop = False
+            if nb_result is not None and len(apps) + len(result) >= nb_result:
+                print("6a")
+                loop = False
+            print("7")
+            if apps is not None and len(apps) > 0:
+                print("8")
+                result.extend(apps)
+                if len(result) > nb_result:
+                    print("9")
+                    x = len(result) - nb_result
+                    result = result[:-x]
+            print("10")
+        print("11")
+        return result
