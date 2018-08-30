@@ -18,6 +18,7 @@ class MobileAssistant360(object):
     _BASE = "http://zhushou.360.cn"
     _DETAIL = "/detail/index/soft_id/"
     _SEARCH = "/search/index/?kw="
+    _CATEGORIES_URL = ["/list/index/cid/1", "/list/index/cid/2"]
 
     _APP_NAME = "Name"
     _APP_PACKAGE = "PackageName"
@@ -30,6 +31,9 @@ class MobileAssistant360(object):
     _APP_SIZE = "Size"
     _APP_UPDATE = "LastUpdate"
     _APP_APK_NAME = "ApkName"
+
+    _CAT_NAME = "Category"
+    _CAT_ID = "CatID"
 
     _UNKNOWN_PACKAGE = "unknown_package"
 
@@ -372,3 +376,61 @@ class MobileAssistant360(object):
         except OSError:
             pass
         return result
+
+    @staticmethod
+    def _category_href_to_id(href):
+        result = ""
+        href_split = href.split("/")
+        if len(href_split) == 1:
+            result = href_split[0]
+        elif len(href_split) > 1:
+            href_split = href_split[-2:]
+            if href_split[1]:
+                result = href_split[1]
+            else:
+                result = href_split[0]
+        return result
+
+    def _get_categories_from_url(self, url):
+        result = []
+        try:
+            req = requests.get(url)
+            if req.status_code != 200:
+                self._display_error("An error occurred with the url \"{}\".\nStatus code: {}."
+                                    .format(url, req.status_code))
+                return None
+        except requests.exceptions.RequestException:
+            self._display_error("An error occurred with the url '{}' while getting the categories.".format(url))
+            return None
+        try:
+            bsoup = BeautifulSoup(req.text, "html.parser")
+            category_list = bsoup.find(attrs={'class': 'select'}).li.findAll("a")
+            if not isinstance(category_list, list) or len(category_list) <= 1:
+                self._display_error("An error occurred with the url '{}' while getting the categories.".format(url))
+                return None
+            category_list = category_list[1:]
+            for category in category_list:
+                if category.string is not None and category.get('href') is not None:
+                    category_name = category.string
+                    category_id = self._category_href_to_id(category['href'])
+                    result.append({self._CAT_NAME: category_name,
+                                   self._CAT_ID: category_id})
+                else:
+                    self._display_warning("Something went wrong with the url '{}'.".format(url))
+        except AttributeError:
+            self._display_error("An error occurred with the url '{}' while getting the categories.".format(url))
+            return None
+        return result
+
+    def list_categories(self):
+        """
+        List the existing categories.
+        """
+        result = []
+        for cat_url in self._CATEGORIES_URL:
+            url = self._BASE + cat_url
+            ret = self._get_categories_from_url(url)
+            if isinstance(ret, list) and len(ret) > 0:
+                result.extend(ret)
+        return result
+
