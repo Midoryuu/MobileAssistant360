@@ -2,7 +2,7 @@
 
 from setuptools import setup
 
-setup(name='mobile_assistant_360',
+setup(name='MobileAssistant360',
       version='0.1',
       description='Python api for downloading application from the Chinese store 360ZhuShou',
       author='Midoryuu',
